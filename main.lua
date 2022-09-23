@@ -15,7 +15,7 @@ local Vector2 = {}
 Vector2.__index = Vector2
 
 local Ball = {}
-Ball.__index = Ball
+local BallMT = {__index = Ball}
 
 -- Vector2 object for Ball
 function Vector2:new(x, y)
@@ -59,24 +59,22 @@ function Vector2:new(x, y)
 end
 
 -- Ball object
-function Ball:new(x, y, density, radius)
-    local o = {}
-    setmetatable(o, self)
+function Ball:new(x, y, density, radius, airDrag, elasticity, groundFriction)
+    local self = {}
 
     self.vecPos = Vector2:new(x, y)
     self.vecVel = Vector2:new(0, 0)
-    self.vecAcc = Vector2:new(0, 0)
     self.properties = {
         density = density,
         radius = radius,
-        airDrag = 0.99,
-        elasticity = 0.8,
-        groundFriction = 0.98,
+        airDrag = airDrag,
+        elasticity = elasticity,
+        groundFriction = groundFriction,
     }
 
     self.lastUpdate = 0
 
-    return o
+    return setmetatable(self, BallMT)
 end
 
 function Ball:update()
@@ -89,8 +87,16 @@ function Ball:update()
     end
 
     if (self.vecPos.x >= c.width - self.properties.radius) or (self.vecPos.x <= self.properties.radius) then
-        self.vecPos.x = self.properties.radius and (self.vecPos.x < c.width + self.properties.radius) or (c.width - self.properties.radius)
+        if (self.vecPos.x <= self.properties.radius) then
+            self.vecPos.x = self.properties.radius
+        else
+            self.vecPos.x = c.width - self.properties.radius
+        end
         self.vecVel.x = -(self.vecVel.x * self.properties.elasticity)
+    end
+
+    for _, v in ipairs(instances) do
+        
     end
 
     self.vecVel.y = self.vecVel.y + 0.98
@@ -116,14 +122,11 @@ end)
 
 local function updateMouse(_, e)
     local rect = c:getBoundingClientRect()
-    -- document:getElementById("debug").value = instanceCount .. spawnType
     local x = e.clientX - rect.left
-    -- document:getElementById("debug").value = x
     local y = e.clientY - rect.top
-    -- document:getElementById("debug").value = x .. y
 
-    local newBall = Ball:new(x, y, 1, math.random(5,15))
-    instances[instanceCount+1] = newBall
+    local newBall = Ball:new(x, y, 1, math.random(5,15), 0.99, 0.8, 0.98)
+    instances[instanceCount] = newBall
     instanceCount = instanceCount + 1
 
     -- window.console:log("clock "..instanceCount)
@@ -146,7 +149,6 @@ local function draw()
         ctx:beginPath()
         ctx:arc(v.vecPos.x, v.vecPos.y, v.properties.radius, 0, 2*math.pi, false) 
         ctx:stroke()
-
         -- window.console:log()
     end
 
