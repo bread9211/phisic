@@ -7,14 +7,20 @@ local ctx = c:getContext("2d")
 local spawnType = "ball"
 
 local instances = {}
+local instanceCount = 0
 
 local time = os.clock()
 
 local Vector2 = {}
 Vector2.__index = Vector2
 
+local Ball = {}
+Ball.__index = Ball
+
+-- Vector2 object for Ball
 function Vector2:new(x, y)
     local o = {}
+    local mt = {}
     setmetatable(o, self)
 
     o.x = x or 0
@@ -23,13 +29,13 @@ function Vector2:new(x, y)
         return math.abs(math.sqrt(o.x^2 + o.y^2))
     end
     
-    o.__add = function (a, b)
+    mt.__add = function (a, b)
         return Vector2:new(a.x+b.x, a.y+b.y)
     end
-    o.__sub = function (a, b)
+    mt.__sub = function (a, b)
         return Vector2:new(a.x-b.x, a.y-b.y)
     end
-    o.__mul = function (a, b)
+    mt.__mul = function (a, b)
         if (type(a) == "number") then
             return Vector2:new(a*b.x, a*b.y)
         elseif (type(b) == "number") then
@@ -38,7 +44,7 @@ function Vector2:new(x, y)
             return Vector2:new(a.x*b.x, a.y*b.y)
         end
     end
-    o.__div = function (a, b)
+    mt.__div = function (a, b)
         if (type(a) == "number") then
             return Vector2:new(a/b.x, a/b.y)
         elseif (type(b) == "number") then
@@ -48,23 +54,24 @@ function Vector2:new(x, y)
         end
     end
 
+    o = setmetatable(o, mt)
     return o
 end
 
-local Ball = {}
-Ball.__index = Ball
-
+-- Ball object
 function Ball:new(x, y, density, radius)
     local o = {}
     setmetatable(o, self)
 
     self.vecPos = Vector2:new(x, y)
-    self.vecVel = Vector2:new()
-    self.vecAcc = Vector2:new()
+    self.vecVel = Vector2:new(0, 0)
+    self.vecAcc = Vector2:new(0, 0)
     self.properties = {
         density = density,
         radius = radius,
-        airResist = 1,
+        airDrag = 0.99,
+        elasticity = 0.8,
+        groundFriction = 0.98,
     }
 
     self.lastUpdate = 0
@@ -72,73 +79,82 @@ function Ball:new(x, y, density, radius)
     return o
 end
 
-function Ball:update(t, instance)
-    local lowerLimit = 200-self.properties.radius
+function Ball:update()
+    self.vecPos.x = self.vecPos.x + self.vecVel.x
+    self.vecPos.y = self.vecPos.y + self.vecVel.y
 
-    local mass = self.properties.density * math.pi*self.properties.radius^2
-
-    local netX = mass * self.vecAcc.x
-    local netY = mass * self.vecAcc.y - 9.8*mass
-
-    for i in ipairs(instance) do
-        if ((i.vecPos-self.vecPos).Magnitude() <= 1) then
-            local iMass = i.properties.density * math.pi*i.properties.radius^2
-            netX = netX + iMass * i.vecAcc.x
-            netY = netY + iMass * i.vecAcc.y
-        end
+    if (self.vecPos.y >= c.height - self.properties.radius) then
+        self.vecPos.y = c.height - self.properties.radius
+        self.vecVel.y = -(self.vecVel.y * self.properties.elasticity)
     end
 
-    if (self.vecPos.y >= lowerLimit) and (netY < 0) then
-        netY = 0
+    if (self.vecPos.x >= c.width - self.properties.radius) or (self.vecPos.x <= self.properties.radius) then
+        self.vecPos.x = self.properties.radius and (self.vecPos.x < c.width + self.properties.radius) or (c.width - self.properties.radius)
+        self.vecVel.x = -(self.vecVel.x * self.properties.elasticity)
     end
 
-    local dT = t - self.lastUpdate
+    self.vecVel.y = self.vecVel.y + 0.98
 
-    local vecPosX = self.vecVel.x*dT + (self.vecAcc.x*dT^2)/2
-    local vecPosY = self.vecVel.y*dT + (self.vecAcc.y*dT^2)/2
-
-    local vecVelX = self.vecVel.x + self.vecAcc.x*dT
-    local vecVelY = self.vecVel.y + self.vecAcc.y*dT
-
-    local vecAccX = netX / mass
-    local vecAccY = netY / mass
-
-    self.vecPos = Vector2:new(vecPosX, vecPosY)
-    self.vecVel = Vector2:new(vecVelX, vecVelY)
-    self.vecAcc = Vector2:new(vecAccX, vecAccY)
+    self.vecVel.x = self.vecVel.x * self.properties.airDrag
+    self.vecVel.y = self.vecVel.y * self.properties.airDrag
+    if (self.vecPos.y >= (c.height - self.properties.radius)) then
+        self.vecVel.x = self.vecVel.x * self.properties.groundFriction;
+    end
 end
 
 document:getElementById("balls"):addEventListener("click", function ()
-    document:getElementById("debug").value = #instances .. spawnType
+    document:getElementById("debug").value = instanceCount .. spawnType
 
     spawnType = "ball"
 end)
 
 document:getElementById("bombs"):addEventListener("click", function ()
-    document:getElementById("debug").value = #instances .. spawnType
+    document:getElementById("debug").value = instanceCount .. spawnType
 
     spawnType = "bomb"
 end)
 
-c:addEventListener("mousedown", function (event)
-    document:getElementById("debug").value = #instances .. spawnType
-
+local function updateMouse(_, e)
     local rect = c:getBoundingClientRect()
-    local x = event.clientX - rect.left
-    local y = event.clientY - rect.top
-    table.insert(instances, Ball:new(x, y, 1, 1))
-end)
+    -- document:getElementById("debug").value = instanceCount .. spawnType
+    local x = e.clientX - rect.left
+    -- document:getElementById("debug").value = x
+    local y = e.clientY - rect.top
+    -- document:getElementById("debug").value = x .. y
 
-local function update()
-    window:requestAnimationFrame(update)
+    local newBall = Ball:new(x, y, 1, math.random(5,15))
+    instances[instanceCount+1] = newBall
+    instanceCount = instanceCount + 1
 
-    for i in ipairs(instances) do
-        i:update(os.clock() - time, instances)
-        ctx.fillStyle = "#000000"
-        ctx:beginPath()
-        ctx:arc(i.vecPos.x-i.properties.radius, i.vecPos.y-i.properties.radius, 0, 2*math.pi) 
-        ctx:stroke()
-    end
+    -- window.console:log("clock "..instanceCount)
 end
 
-window:requestAnimationFrame(update)
+c:addEventListener("mousedown", updateMouse)
+
+local function draw() 
+    if instanceCount <= 0 then 
+        -- window.console:log("notclock "..instanceCount) 
+        window:requestAnimationFrame(draw) 
+        return 
+    end
+
+    ctx:clearRect(0, 0, c.width, c.height)
+
+    for _, v in ipairs(instances) do
+        v:update()
+        ctx.fillStyle = "#000000"
+        ctx:beginPath()
+        ctx:arc(v.vecPos.x, v.vecPos.y, v.properties.radius, 0, 2*math.pi, false) 
+        ctx:stroke()
+
+        -- window.console:log()
+    end
+
+    time = os.clock()
+
+    window:requestAnimationFrame(draw)
+
+    --document:getElementById("debug").value = "update"
+end
+
+draw()
