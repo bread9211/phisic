@@ -46,6 +46,9 @@ function Vector2:new(x, y)
     mt.__sub = function (a, b)
         return Vector2:new(a.x-b.x, a.y-b.y)
     end
+    mt.__mul = function (a, b)
+        return Vector2:new(a.x*b, a.y*b)
+    end
     mt.__div = function (a, b)
         return Vector2:new(a.x/b, a.y/b)
     end
@@ -66,6 +69,7 @@ function Ball:new(x, y, density, radius, airDrag, elasticity, groundFriction)
         airDrag = airDrag,
         elasticity = elasticity,
         groundFriction = groundFriction,
+        mass = density*(math.pi*(radius^2))
     }
 
     -- ignore
@@ -80,28 +84,36 @@ function Ball:update()
     for _, v in ipairs(instances) do
         local collision = self.vecPos - v.vecPos
         local distance = collision.Magnitude()
-        if (distance == 0) then
----@diagnostic disable-next-line: cast-local-type
-            collision = Vector2:new(1, 0)
-            distance = self.properties.radius+v.properties.radius
+        local radii = self.properties.radius+v.properties.radius
+
+        if (collision.Dot(collision) > radii^2) and (self ~= v) then goto next end
+
+        local moveVec
+
+        if (distance ~= 0) then
+            moveVec = collision*((radii-distance)/distance)
+        else
+            distance = radii-1
+            collision = Vector2:new(radii, 0)
+            moveVec = collision*((radii-distance)/distance)
         end
+
+        self.vecPos = self.vecPos + (moveVec*(self.properties.mass/(self.properties.mass+v.properties.mass)))
+        v.vecPos = v.vecPos - (moveVec*(v.properties.mass/(self.properties.mass+v.properties.mass)))
         
-        if (distance <= self.properties.radius+v.properties.radius) and (self ~= v) then
-            collision = collision / distance
-            local aci = self.vecVel.Dot(collision)
-            local bci = v.vecVel.Dot(collision)
+        collision = collision / distance
+        local aci = self.vecVel.Dot(collision)
+        local bci = v.vecVel.Dot(collision)
 
-            local acf = bci
-            local bcf = aci
+        local acf = bci
+        local bcf = aci
 
-            self.vecPos = self.vecPos - self.vecVel
-            v.vecPos = v.vecPos - v.vecVel
+        self.vecVel.x = self.vecVel.x + (acf-aci)*collision.x
+        self.vecVel.y = self.vecVel.y + (acf-aci)*collision.y
+        v.vecVel.x = v.vecVel.x + (bcf-bci)*collision.x
+        v.vecVel.y = v.vecVel.y + (bcf-bci)*collision.y
 
-            self.vecVel.x = self.vecVel.x + (acf-aci)*collision.x
-            self.vecVel.y = self.vecVel.y + (acf-aci)*collision.y
-            v.vecVel.x = v.vecVel.x + (bcf-bci)*collision.x
-            v.vecVel.y = v.vecVel.y + (bcf-bci)*collision.y
-        end
+        ::next::
     end
 
     self.vecPos.x = self.vecPos.x + self.vecVel.x
