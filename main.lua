@@ -26,8 +26,17 @@ function Vector2:new(x, y)
 
     o.x = x or 0
     o.y = y or 0
+
     o.Magnitude = function ()
         return math.abs(math.sqrt(o.x^2 + o.y^2))
+    end
+
+    o.Unit = function ()
+        return Vector2:new(o.x/o.Magnitude(), o.y/o.Magnitude())
+    end
+
+    o.Dot = function (v)
+        return (o.x*v.x) + (o.y*v.y)
     end
     
     mt.__add = function (a, b)
@@ -36,23 +45,8 @@ function Vector2:new(x, y)
     mt.__sub = function (a, b)
         return Vector2:new(a.x-b.x, a.y-b.y)
     end
-    mt.__mul = function (a, b)
-        if (type(a) == "number") then
-            return Vector2:new(a*b.x, a*b.y)
-        elseif (type(b) == "number") then
-            return Vector2:new(a.x*b, a.y*b)
-        else
-            return Vector2:new(a.x*b.x, a.y*b.y)
-        end
-    end
     mt.__div = function (a, b)
-        if (type(a) == "number") then
-            return Vector2:new(a/b.x, a/b.y)
-        elseif (type(b) == "number") then
-            return Vector2:new(a.x/b, a.y/b)
-        else
-            return Vector2:new(a.x/b.x, a.y/b.y)
-        end
+        return Vector2:new(a.x/b, a.y/b)
     end
 
     o = setmetatable(o, mt)
@@ -74,23 +68,41 @@ function Ball:new(x, y, density, radius, airDrag, elasticity, groundFriction)
     }
 
     self.lastUpdate = 0
+    self.atRest = false
+    self.oldPos = Vector2:new(0, 0)
 
     return setmetatable(self, BallMT)
 end
 
 function Ball:update()
     for _, v in ipairs(instances) do
-        if (self.vecPos-v.vecPos).Magnitude() < (self.properties.radius+v.properties.radius) and (self ~= v) and !(checked[v]==1) then
-            local normal = self.vecPos - v.vecPos
-            local reflectionVX = self.vecVel.x - normal.x*(2*self.vecVel.x*normal.x)
-            local reflectionVY = self.vecVel.y - normal.y*(2*self.vecVel.x*normal.y)
-            window.console:log(reflectionVX .. " " .. reflectionVY)
-            self.vecVel.x = self.vecVel.x + reflectionVX*10
-            self.vecVel.y = self.vecVel.y + reflectionVY*10
+        local collision = self.vecPos - v.vecPos
+        local distance = collision.Magnitude()
+        if (distance == 0) then
+---@diagnostic disable-next-line: cast-local-type
+            collision = Vector2:new(35, 0)
+            distance = self.properties.radius+v.properties.radius
+        end
+        
+        if (distance <= self.properties.radius+v.properties.radius) and (self ~= v) then
+            -- collision = collision / distance
+            -- local aci = self.vecVel.Dot(collision)
+            -- local bci = v.vecVel.Dot(collision)
 
-            checked[v] = 1
-        else
-            checked[v] = nil
+            -- local acf = bci
+            -- local bcf = aci
+            
+            -- self.vecPos.x = self.vecPos.x - self.vecVel.x
+            -- self.vecPos.y = self.vecPos.y - self.vecVel.y
+            -- v.vecPos.x = v.vecPos.x - v.vecVel.x
+            -- v.vecPos.y = v.vecPos.y - v.vecVel.y
+
+            -- self.vecVel.x = self.vecVel.x + (acf-aci)*collision.x
+            -- self.vecVel.y = self.vecVel.y + (acf-aci)*collision.y
+            -- v.vecVel.x = v.vecVel.x + (bcf-bci)*collision.x
+            -- v.vecVel.y = v.vecVel.y + (bcf-bci)*collision.y
+
+            
         end
     end
 
@@ -111,9 +123,7 @@ function Ball:update()
         self.vecVel.x = -(self.vecVel.x * self.properties.elasticity)
     end
 
-
     self.vecVel.y = self.vecVel.y + 0.98
-
     self.vecVel.x = self.vecVel.x * self.properties.airDrag
     self.vecVel.y = self.vecVel.y * self.properties.airDrag
     if (self.vecPos.y >= (c.height - self.properties.radius)) then
