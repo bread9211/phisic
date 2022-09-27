@@ -3,6 +3,11 @@
 <html>
     <head>
         <script src = "fengari-web.js" type = "text/javascript"></script>
+        <script type = "text/javascript">
+            function reset() {
+                document.getElementById("gravity").value = 0.98
+            }
+        </script>
         <title>phisik</title>
     </head>
 
@@ -10,8 +15,19 @@
         <canvas id = "screen" width = "350" height = "200" style = "border: 1px solid black;"></canvas>
         <br>
         <input id = "balls" type = "button" value = "ball">
+        <br>
         <input id = "bombs" type = "button" value = "bomb">
-        <input id = "debug" type = "text" value = "fds">
+        <br>
+        Gravity: 0<input id = "gravity" type = "range" min = 0 max = 5 step = "0.01" style = "width: 300px;" value = "0.98">5
+        <br>
+        <input type = "button" value = "reset" onclick = "reset()">
+        <p id = "bombInp" style = "visibility: hidden;">
+        Strength: <input id = "strength" type = "number" value = "1">
+        <br>
+        Radius: <input id = "radius" type = "number" value = 5>
+        <br>
+        Decay: <input id = "decay" type = "number" value = "1">
+        <p>
         
         <script src = "main.lua" type = "application/lua" async></script>
     </body>

@@ -9,6 +9,8 @@ local spawnType = "ball"
 local instances = {}
 local instanceCount = 0
 
+local gravity = 0.98
+
 -- local time = os.clock()
 -- local checked = {}
 
@@ -17,6 +19,9 @@ Vector2.__index = Vector2
 
 local Ball = {}
 local BallMT = {__index = Ball}
+
+local Bomb = {}
+local BombMT = {__index = Bomb}
 
 -- Vector2 object for Ball
 function Vector2:new(x, y)
@@ -133,7 +138,7 @@ function Ball:update()
         self.vecVel.x = -(self.vecVel.x * self.properties.elasticity)
     end
 
-    self.vecVel.y = self.vecVel.y + 0.98
+    self.vecVel.y = self.vecVel.y + gravity
     self.vecVel.x = self.vecVel.x * self.properties.airDrag
     self.vecVel.y = self.vecVel.y * self.properties.airDrag
     if (self.vecPos.y >= (c.height - self.properties.radius)) then
@@ -141,16 +146,46 @@ function Ball:update()
     end
 end
 
+function Bomb:new(x, y, strength, radius, decay)
+    local self = {}
+
+    self.vecPos = Vector2:new(x, y)
+    self.strength = strength
+    self.radius = radius
+    self.decay = decay
+
+    return setmetatable(self,BombMT)
+end
+
+function Bomb:Detonate()
+    for _, v in ipairs(instances) do
+        local direction = self.vecPos-v.vecPos
+        local distance = (direction).Magnitude()
+
+        if (distance <= self.radius) then
+            v.vecVel = direction.Unit()*-1 + v.vecVel*(self.strength+1)
+        else
+            distance = distance - self.radius
+
+            v.vecVel = direction.Unit()*-1 + v.vecVel*(self.strength*(1/distance))
+        end
+    end
+end
+
 document:getElementById("balls"):addEventListener("click", function ()
-    document:getElementById("debug").value = instanceCount .. spawnType
+    document:getElementById("bombInp").style.visibility = "hidden"
 
     spawnType = "ball"
 end)
 
 document:getElementById("bombs"):addEventListener("click", function ()
-    document:getElementById("debug").value = instanceCount .. spawnType
+    document:getElementById("bombInp").style.visibility = "visible"
 
     spawnType = "bomb"
+end)
+
+document:getElementById("gravity"):addEventListener("input", function ()
+    gravity = tonumber(document:getElementById("gravity").value)
 end)
 
 local function updateMouse(_, e)
@@ -158,9 +193,13 @@ local function updateMouse(_, e)
     local x = e.clientX - rect.left
     local y = e.clientY - rect.top
 
-    local newBall = Ball:new(x, y, 1, 5, 0.99, 0.5, 0.98)
-    instances[instanceCount+1] = newBall
-    instanceCount = instanceCount + 1
+    if (spawnType == "ball") then
+        local newBall = Ball:new(x, y, 1, 5, 0.99, 0.5, 0.98)
+        instances[instanceCount+1] = newBall
+        instanceCount = instanceCount + 1
+    elseif (spawnType == "bomb") then
+        Bomb:new(x, y, tonumber(document:getElementById("strength").value), tonumber(document:getElementById("radius").value), tonumber(document:getElementById("decay").value)):Detonate()
+    end
 
     -- window.console:log("clock "..instanceCount)
 end
@@ -184,8 +223,6 @@ local function draw()
         ctx:stroke()
         -- window.console:log()
     end
-
-    time = os.clock()
 
     window:requestAnimationFrame(draw)
 
