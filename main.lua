@@ -9,8 +9,8 @@ local spawnType = "ball"
 local instances = {}
 local instanceCount = 0
 
-local time = os.clock()
-local checked = {}
+-- local time = os.clock()
+-- local checked = {}
 
 local Vector2 = {}
 Vector2.__index = Vector2
@@ -31,6 +31,7 @@ function Vector2:new(x, y)
         return math.abs(math.sqrt(o.x^2 + o.y^2))
     end
 
+    -- ignore
     o.Unit = function ()
         return Vector2:new(o.x/o.Magnitude(), o.y/o.Magnitude())
     end
@@ -67,6 +68,7 @@ function Ball:new(x, y, density, radius, airDrag, elasticity, groundFriction)
         groundFriction = groundFriction,
     }
 
+    -- ignore
     self.lastUpdate = 0
     self.atRest = false
     self.oldPos = Vector2:new(0, 0)
@@ -80,29 +82,25 @@ function Ball:update()
         local distance = collision.Magnitude()
         if (distance == 0) then
 ---@diagnostic disable-next-line: cast-local-type
-            collision = Vector2:new(35, 0)
+            collision = Vector2:new(1, 0)
             distance = self.properties.radius+v.properties.radius
         end
         
         if (distance <= self.properties.radius+v.properties.radius) and (self ~= v) then
-            -- collision = collision / distance
-            -- local aci = self.vecVel.Dot(collision)
-            -- local bci = v.vecVel.Dot(collision)
+            collision = collision / distance
+            local aci = self.vecVel.Dot(collision)
+            local bci = v.vecVel.Dot(collision)
 
-            -- local acf = bci
-            -- local bcf = aci
-            
-            -- self.vecPos.x = self.vecPos.x - self.vecVel.x
-            -- self.vecPos.y = self.vecPos.y - self.vecVel.y
-            -- v.vecPos.x = v.vecPos.x - v.vecVel.x
-            -- v.vecPos.y = v.vecPos.y - v.vecVel.y
+            local acf = bci
+            local bcf = aci
 
-            -- self.vecVel.x = self.vecVel.x + (acf-aci)*collision.x
-            -- self.vecVel.y = self.vecVel.y + (acf-aci)*collision.y
-            -- v.vecVel.x = v.vecVel.x + (bcf-bci)*collision.x
-            -- v.vecVel.y = v.vecVel.y + (bcf-bci)*collision.y
+            self.vecPos = self.vecPos - self.vecVel
+            v.vecPos = v.vecPos - v.vecVel
 
-            
+            self.vecVel.x = self.vecVel.x + (acf-aci)*collision.x
+            self.vecVel.y = self.vecVel.y + (acf-aci)*collision.y
+            v.vecVel.x = v.vecVel.x + (bcf-bci)*collision.x
+            v.vecVel.y = v.vecVel.y + (bcf-bci)*collision.y
         end
     end
 
