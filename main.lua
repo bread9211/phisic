@@ -237,7 +237,7 @@ local function draw()
         ctx.fillStyle = "#000000"
         ctx:beginPath()
         ctx:arc(v.vecPos.x, v.vecPos.y, v.properties.radius, 0, 2*math.pi, false) 
-        ctx:stroke()
+        ctx:fill()
         -- window.console:log()
     end
 
