@@ -79,7 +79,7 @@ function Ball:new(x, y, density, radius, airDrag, elasticity, groundFriction)
 
     -- ignore
     self.lastUpdate = 0
-    self.atRest = false
+    self.lowerBound = c.height-self.properties.radius
     self.oldPos = Vector2:new(0, 0)
 
     return setmetatable(self, BallMT)
@@ -103,6 +103,12 @@ function Ball:update()
             moveVec = collision*((radii-distance)/distance)
         end
 
+        if (self.vecPos.x == v.vecPos.x) and not (self == v) then
+            self.lowerBound = v.vecPos.y - v.properties.radius
+        else 
+            self.lowerBound = c.height-self.properties.radius
+        end
+
         self.vecPos = self.vecPos + (moveVec*(self.properties.mass/(self.properties.mass+v.properties.mass)))
         v.vecPos = v.vecPos - (moveVec*(v.properties.mass/(self.properties.mass+v.properties.mass)))
         
@@ -124,8 +130,8 @@ function Ball:update()
     self.vecPos.x = self.vecPos.x + self.vecVel.x
     self.vecPos.y = self.vecPos.y + self.vecVel.y
 
-    if (self.vecPos.y >= c.height - self.properties.radius) then
-        self.vecPos.y = c.height - self.properties.radius
+    if (self.vecPos.y >= self.lowerBound) then
+        self.vecPos.y = self.lowerBound
         self.vecVel.y = -(self.vecVel.y * self.properties.elasticity)
     end
 
@@ -138,7 +144,9 @@ function Ball:update()
         self.vecVel.x = -(self.vecVel.x * self.properties.elasticity)
     end
 
-    self.vecVel.y = self.vecVel.y + gravity
+    if (self.lowerBound == c.height-self.properties.radius) then
+        self.vecVel.y = self.vecVel.y + gravity
+    end
     self.vecVel.x = self.vecVel.x * self.properties.airDrag
     self.vecVel.y = self.vecVel.y * self.properties.airDrag
     if (self.vecPos.y >= (c.height - self.properties.radius)) then
@@ -166,8 +174,17 @@ function Bomb:Detonate()
             v.vecVel = direction.Unit()*-1 + v.vecVel*(self.strength+1)
         else
             distance = distance - self.radius
+            
+            coroutine.wrap(function ()
+                local function wait(n)
+                    local last = os.clock()
 
-            v.vecVel = direction.Unit()*-1 + v.vecVel*(self.strength*(1/distance))
+                    while (n < (os.clock()-last)) do end
+                end
+
+                wait()
+                v.vecVel = direction.Unit()*-1 + v.vecVel*(self.strength*(1/distance))
+            end)
         end
     end
 end
